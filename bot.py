@@ -7,6 +7,7 @@ from handlers import (
     cart_callback_handler,
     checkout_handler,
     menu_handler,
+    noop_handler,
     payment_callback_handler,
     phone_handler,
     start_handler,
@@ -41,6 +42,7 @@ def main() -> None:
     application.add_handler(start_handler)
     application.add_handler(checkout_handler)  # ConversationHandler first
     application.add_handler(menu_handler)
+    application.add_handler(noop_handler)  # Separator button handler
     application.add_handler(cart_callback_handler)
     application.add_handler(phone_handler)  # show_cart handler
     application.add_handler(payment_callback_handler)  # clear_cart handler

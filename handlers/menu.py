@@ -37,9 +37,14 @@ async def show_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     order_items = context.user_data.get("order_items", [])
     if order_items:
         total = sum(item.price for item in order_items)
+        # Визуальный разделитель
+        keyboard.append([
+            InlineKeyboardButton("─────────────────", callback_data="noop")
+        ])
+        # Кнопка корзины с эмодзи
         keyboard.append([
             InlineKeyboardButton(
-                f"Корзина ({len(order_items)}) - {total} ₸",
+                f"🛒 Корзина ({len(order_items)}) - {total} ₸",
                 callback_data="show_cart",
             )
         ])
@@ -52,6 +57,12 @@ async def show_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 
+async def noop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle noop button press (separator button)."""
+    await update.callback_query.answer()
+
+
 # Handlers
 start_handler = CommandHandler("start", start)
 menu_handler = CallbackQueryHandler(show_menu, pattern="^show_menu$")
+noop_handler = CallbackQueryHandler(noop, pattern="^noop$")

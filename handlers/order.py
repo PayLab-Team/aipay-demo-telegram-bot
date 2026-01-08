@@ -1,6 +1,13 @@
 import re
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    KeyboardButton,
+    ReplyKeyboardMarkup,
+    ReplyKeyboardRemove,
+    Update,
+)
 from telegram.ext import (
     CallbackQueryHandler,
     ContextTypes,
@@ -117,16 +124,47 @@ async def checkout(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         await query.edit_message_text("Корзина пуста. Добавьте товары.")
         return ConversationHandler.END
 
-    await query.edit_message_text(
-        "Введите номер телефона Kaspi для оплаты:\n"
-        "(формат: +7XXXXXXXXXX или 87XXXXXXXXXX)"
+    # Show phone sharing button
+    keyboard = ReplyKeyboardMarkup(
+        [[KeyboardButton("Поделиться номером", request_contact=True)]],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
+
+    await query.edit_message_text("Укажите номер телефона Kaspi для оплаты:")
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="Нажмите кнопку ниже или введите номер вручную\n(формат: +7XXXXXXXXXX)",
+        reply_markup=keyboard,
     )
 
     return WAITING_PHONE
 
 
+async def receive_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Receive phone number from shared contact."""
+    contact = update.message.contact
+    phone = contact.phone_number
+
+    # Normalize to +7 format
+    if not phone.startswith("+"):
+        phone = "+" + phone
+
+    context.user_data["phone"] = phone
+
+    # Remove reply keyboard
+    await update.message.reply_text(
+        f"Номер получен: {phone}",
+        reply_markup=ReplyKeyboardRemove(),
+    )
+
+    # Trigger payment
+    from handlers.payment import process_payment
+    return await process_payment(update, context)
+
+
 async def receive_phone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Receive and validate phone number."""
+    """Receive and validate phone number from text input."""
     phone = update.message.text.strip()
 
     # Normalize phone number
@@ -141,6 +179,12 @@ async def receive_phone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
             phone = "+" + phone
 
         context.user_data["phone"] = phone
+
+        # Remove reply keyboard
+        await update.message.reply_text(
+            f"Номер получен: {phone}",
+            reply_markup=ReplyKeyboardRemove(),
+        )
 
         # Trigger payment
         from handlers.payment import process_payment
@@ -166,7 +210,10 @@ cart_callback_handler = CallbackQueryHandler(add_item_to_cart, pattern="^add_ite
 checkout_handler = ConversationHandler(
     entry_points=[CallbackQueryHandler(checkout, pattern="^checkout$")],
     states={
-        WAITING_PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_phone)],
+        WAITING_PHONE: [
+            MessageHandler(filters.CONTACT, receive_contact),
+            MessageHandler(filters.TEXT & ~filters.COMMAND, receive_phone),
+        ],
     },
     fallbacks=[MessageHandler(filters.COMMAND, cancel_checkout)],
 )

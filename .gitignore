@@ -2,3 +2,5 @@
 /.env
 /firebase-debug.log
 /venv
+*.pyc
+__pycache__/

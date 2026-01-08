@@ -64,6 +64,26 @@ class AiPayClient:
             logger.error(f"Error getting invoice status: {e}")
             return None
 
+    async def refund_invoice(self, invoice_id: str) -> Optional[dict[str, Any]]:
+        """Refund an invoice by ID."""
+        url = f"{self.base_url}/api/v1/invoices/refund/{invoice_id}"
+
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.put(
+                    url, headers=self.headers, timeout=30.0
+                )
+                response.raise_for_status()
+                data = response.json()
+                logger.info(f"Invoice refunded: {invoice_id}")
+                return data
+        except httpx.HTTPStatusError as e:
+            logger.error(f"HTTP error refunding invoice: {e.response.status_code} - {e.response.text}")
+            return None
+        except Exception as e:
+            logger.error(f"Error refunding invoice: {e}")
+            return None
+
     def parse_status(self, response: dict[str, Any]) -> InvoiceStatus:
         """Parse invoice status from API response."""
         # Response format: {'statusDto': {...}, 'obj': {'status': 9, 'statusDescription': '...'}}

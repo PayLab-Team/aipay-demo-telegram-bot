@@ -103,20 +103,41 @@ async def poll_payment_status(
         status = aipay_client.parse_status(response)
 
         if status == InvoiceStatus.PAID:
-            # Payment successful
-            keyboard = [[InlineKeyboardButton("Новый заказ", callback_data="show_menu")]]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-
+            # Payment successful - notify user
             await bot.edit_message_text(
                 chat_id=chat_id,
                 message_id=message_id,
-                text=(
-                    "Оплата получена!\n\n"
-                    "Ваш заказ готовится.\n"
-                    "Спасибо за покупку!"
-                ),
-                reply_markup=reply_markup,
+                text="Оплата получена! Выполняем возврат (это демо)...",
             )
+
+            # Auto-refund for demo purposes
+            refund_result = await aipay_client.refund_invoice(invoice_id)
+
+            keyboard = [[InlineKeyboardButton("Новый заказ", callback_data="show_menu")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            if refund_result:
+                await bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    text=(
+                        "Оплата получена!\n"
+                        "Возврат выполнен (это демо).\n\n"
+                        "Спасибо за тестирование!"
+                    ),
+                    reply_markup=reply_markup,
+                )
+            else:
+                await bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    text=(
+                        "Оплата получена!\n"
+                        "Возврат не удался - обратитесь в поддержку.\n\n"
+                        "Спасибо за тестирование!"
+                    ),
+                    reply_markup=reply_markup,
+                )
 
             # Clear order
             user_data["order_items"] = []

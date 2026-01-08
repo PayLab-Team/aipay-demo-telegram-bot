@@ -42,13 +42,13 @@ class Order:
         self.invoice_id = None
 
 
-# Demo menu items
+# Demo menu items (low prices for demo/testing)
 MENU_ITEMS = [
-    MenuItem(id=1, name="Американо", price=1200),
-    MenuItem(id=2, name="Бургер", price=2500),
-    MenuItem(id=3, name="Пицца", price=3500),
-    MenuItem(id=4, name="Салат", price=1800),
-    MenuItem(id=5, name="Десерт", price=1500),
+    MenuItem(id=1, name="Американо", price=10),
+    MenuItem(id=2, name="Бургер", price=25),
+    MenuItem(id=3, name="Пицца", price=50),
+    MenuItem(id=4, name="Салат", price=35),
+    MenuItem(id=5, name="Десерт", price=100),
 ]
 
 

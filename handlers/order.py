@@ -56,9 +56,14 @@ async def show_menu_after_add(query, context: ContextTypes.DEFAULT_TYPE) -> None
     order_items = context.user_data.get("order_items", [])
     if order_items:
         total = sum(item.price for item in order_items)
+        # Визуальный разделитель
+        keyboard.append([
+            InlineKeyboardButton("─────────────────", callback_data="noop")
+        ])
+        # Кнопка корзины с эмодзи
         keyboard.append([
             InlineKeyboardButton(
-                f"Корзина ({len(order_items)}) - {total} ₸",
+                f"🛒 Корзина ({len(order_items)}) - {total} ₸",
                 callback_data="show_cart",
             )
         ])

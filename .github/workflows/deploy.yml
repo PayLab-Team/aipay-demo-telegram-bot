@@ -1,0 +1,73 @@
+name: Deploy AiPay Demo Telegram Bot
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: aipay-demo-telegram-bot-prod
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy on production server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          command_timeout: 15m
+          script: |
+            set -euo pipefail
+            APP_DIR=/opt/aipay-demo-telegram-bot
+            REPO_DIR="$APP_DIR/repo"
+
+            mkdir -p "$APP_DIR"
+            if [ ! -d "$REPO_DIR/.git" ]; then
+              rm -rf "$REPO_DIR"
+              git clone https://github.com/PayLab-Team/aipay-demo-telegram-bot.git "$REPO_DIR"
+            fi
+
+            cd "$REPO_DIR"
+            git fetch origin master
+            git reset --hard origin/master
+
+            cat > "$APP_DIR/.env" <<'ENVEOF'
+            TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
+            AIPAY_API_URL=${{ secrets.AIPAY_API_URL }}
+            AIPAY_BEARER_TOKEN=${{ secrets.AIPAY_BEARER_TOKEN }}
+            AIPAY_COMPANY_EXTERNAL_ID=${{ secrets.AIPAY_COMPANY_EXTERNAL_ID }}
+            ENVEOF
+            chmod 600 "$APP_DIR/.env"
+
+            docker build -t aipay-demo-telegram-bot:latest "$REPO_DIR"
+
+            cat > /etc/systemd/system/aipay-demo-telegram-bot.service <<'SERVICEEOF'
+            [Unit]
+            Description=AiPay Demo Telegram Bot
+            After=network-online.target docker.service
+            Wants=network-online.target
+            Requires=docker.service
+
+            [Service]
+            Restart=always
+            RestartSec=5
+            WorkingDirectory=/opt/aipay-demo-telegram-bot
+            ExecStartPre=-/usr/bin/docker rm -f aipay-demo-telegram-bot
+            ExecStart=/usr/bin/docker run --rm --name aipay-demo-telegram-bot --env-file /opt/aipay-demo-telegram-bot/.env aipay-demo-telegram-bot:latest
+            ExecStop=/usr/bin/docker stop aipay-demo-telegram-bot
+            TimeoutStopSec=20
+
+            [Install]
+            WantedBy=multi-user.target
+            SERVICEEOF
+
+            systemctl daemon-reload
+            systemctl enable aipay-demo-telegram-bot.service
+            systemctl restart aipay-demo-telegram-bot.service
+            sleep 5
+            systemctl --no-pager --full status aipay-demo-telegram-bot.service
+            docker ps --filter name=aipay-demo-telegram-bot --format '{{.Names}}\t{{.Image}}\t{{.Status}}'
